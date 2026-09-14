@@ -304,6 +304,23 @@ namespace CoreTests
         }
 
         [TestMethod]
+        public void SpecifiedPattern_ZeroQuantity_ValueSerializedWhenSpecified()
+        {
+            // Zero equals the type default, but valueSpecified says the value is present
+            var quantity = new Hl7.Cql.Elm.Quantity { value = 0m, valueSpecified = true, unit = "cm" };
+            var lib = new Library { parameters = [new ParameterDef { name = "p", @default = quantity }] };
+
+            var json = lib.SerializeToJson();
+
+            var node = LibraryJsonSerializer.ParseToJsonNode(json)["library"]!["parameters"]!["def"]![0]!["default"]!;
+            node["value"]!.GetValue<decimal>().Should().Be(0m);
+
+            var parsed = Library.ParseFromJson(json, validate: false).parameters[0].@default.Should().BeOfType<Hl7.Cql.Elm.Quantity>().Subject;
+            parsed.valueSpecified.Should().BeTrue();
+            parsed.value.Should().Be(0m);
+        }
+
+        [TestMethod]
         public void XmlIncludeAttribute_ExpressionBaseClass_DeclaresAllDerivedTypes()
         {
             // Expression class should have XmlIncludeAttribute for all derived types

@@ -287,9 +287,7 @@ internal static class LibraryJsonSerializer
                 prop.ValuePropSpecified.Set?.Invoke(obj, true);
             };
 
-            // Only serialize the property if xxxSpecified is true.
-            // Preserve the existing ShouldSerialize logic (e.g., from DoNotSerializeDefaultValues).
-            var existingShouldSerialize = prop.ValueProp.ShouldSerialize;
+            // Only serialize the property if xxxSpecified is true; the flag alone decides, even for a default value.
             prop.ValueProp.ShouldSerialize = (obj, value) =>
             {
                 var shouldSerialize = (bool?)prop.ValuePropSpecified.Get?.Invoke(obj) == true;
@@ -297,11 +295,7 @@ internal static class LibraryJsonSerializer
                     Debug.Fail($"Property '{prop.ValueProp.Name}' is set to '{value}', but " +
                                $"the '{prop.ValuePropSpecified.Name}' is false.");
 
-                // If the specified flag is false, don't serialize
-                if (!shouldSerialize) return false;
-
-                // Otherwise, defer to the existing ShouldSerialize logic
-                return existingShouldSerialize?.Invoke(obj, value) ?? true;
+                return shouldSerialize;
             };
 
             // The xxxSpecified prop should never be serialized itself.
