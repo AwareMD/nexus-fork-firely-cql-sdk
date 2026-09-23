@@ -270,4 +270,12 @@ public class CqlDateTests
         var date = new CqlDate(2024, 3, 15);
         Assert.ThrowsException<CqlException<CqlUcumMonthArithmeticError>>(() => date.Subtract(new CqlQuantity(1m, "mo")));
     }
+
+    [TestMethod]
+    public void ConvertStringToDate_OutOfRange_ReturnsNull()
+    {
+        // CQL ToDate: "does not represent a valid date value, the result is null".
+        var ops = Hl7.Cql.Fhir.FhirCqlContext.WithDataSource().Operators;
+        Assert.IsNull(ops.ConvertStringToDate("2026-13-45"));
+    }
 }

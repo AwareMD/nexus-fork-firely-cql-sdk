@@ -382,4 +382,14 @@ public class CqlDateTimeTests
         var result = dateTime.Subtract(quantity);
         Assert.IsNull(result, "Subtracting years from minimum datetime should return null to prevent overflow");
     }
+
+    [TestMethod]
+    [DataRow("2026-13-45T10:00:00.000Z", DisplayName = "month and day out of range")]
+    [DataRow("2026-01-01T10:00:00.000+15:00", DisplayName = "offset out of range")]
+    public void ConvertStringToDateTime_OutOfRange_ReturnsNull(string value)
+    {
+        // CQL ToDateTime: "does not represent a valid DateTime value, the result is null".
+        var ops = FhirCqlContext.WithDataSource().Operators;
+        Assert.IsNull(ops.ConvertStringToDateTime(value));
+    }
 }

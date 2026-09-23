@@ -331,6 +331,19 @@ namespace CoreTests
         }
 
         [TestMethod]
+        public void ConvertString_DateThatDoesNotExist_ReturnsNull()
+        {
+            // A FHIR date element read as a string, such as a birthDate of 29 February in a common year.
+            Assert.IsNull(FhirTypeConverter.Convert<CqlDate?>("2026-02-29"));
+        }
+
+        [TestMethod]
+        public void ConvertString_TimeWithOffsetOutOfRange_ReturnsNull()
+        {
+            Assert.IsNull(FhirTypeConverter.Convert<CqlTime?>("10:00:00+15:00"));
+        }
+
+        [TestMethod]
         public void ConvertParameters_Quantity()
         {
             var parameter = new ParameterComponent()

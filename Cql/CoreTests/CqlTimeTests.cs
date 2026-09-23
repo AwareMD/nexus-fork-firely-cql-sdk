@@ -150,4 +150,12 @@ public class CqlTimeTests
         var result = ops.ConvertStringToTime(null);
         Assert.IsNull(result);
     }
+
+    [TestMethod]
+    public void ConvertStringToTime_OffsetOutOfRange_ReturnsNull()
+    {
+        // CQL ToTime: "does not represent a valid time-of-day value, the result is null".
+        var ops = FhirCqlContext.WithDataSource().Operators;
+        Assert.IsNull(ops.ConvertStringToTime("T10:00:00.0+15:00"));
+    }
 }

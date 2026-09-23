@@ -209,6 +209,12 @@ namespace Hl7.Cql.Iso8601
                 return false;
             }
 
+            if (!CalendarRange.IsRepresentableDate(year!.Value, month, day))
+            {
+                dateValue = null;
+                return false;
+            }
+
             dateValue = new DateIso8601(stringValue, year!.Value, month, day);
             return true;
         }

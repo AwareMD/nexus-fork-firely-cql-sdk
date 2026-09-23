@@ -351,6 +351,12 @@ namespace Hl7.Cql.Iso8601
                 return false;
             }
 
+            if (!CalendarRange.IsRepresentableOffset(osHour, osMinute))
+            {
+                timeValue = null;
+                return false;
+            }
+
             timeValue = new TimeIso8601(hour, minute, second, ms, osHour, osMinute);
             return true;
         }

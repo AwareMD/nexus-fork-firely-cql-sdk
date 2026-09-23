@@ -437,6 +437,17 @@ namespace Hl7.Cql.Iso8601
                 }
             }
 
+            if (!CalendarRange.IsRepresentableDate(year!.Value, month, day)
+                || !CalendarRange.IsRepresentableTime(hour, minute, second)
+                || !CalendarRange.IsRepresentableOffset(osHour, osMinute)
+                || !CalendarRange.IsRepresentableInstant(
+                    new DateTime(year!.Value, month ?? 1, day ?? 1, hour ?? 0, minute ?? 0, second ?? 0, ms ?? 0),
+                    osHour, osMinute))
+            {
+                dateTimeValue = null;
+                return false;
+            }
+
             dateTimeValue = new DateTimeIso8601(stringValue, year!.Value, month, day, hour, minute, second, ms, osHour, osMinute);
             return true;
         }
