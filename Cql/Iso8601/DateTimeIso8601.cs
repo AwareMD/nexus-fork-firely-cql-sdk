@@ -458,6 +458,12 @@ namespace Hl7.Cql.Iso8601
                 }
             }
 
+            if (!DateIso8601.IsRepresentable(year!.Value, month, day))
+            {
+                dateTimeValue = null;
+                return false;
+            }
+
             try
             {
                 dateTimeValue = new DateTimeIso8601(stringValue, year!.Value, month, day, hour, minute, second, ms, osHour, osMinute, strict);

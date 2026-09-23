@@ -1932,5 +1932,21 @@ namespace Hl7.Cql.CqlToElm.Test
             var equalsCall = Run(invokeEquals, input);
             Assert.AreEqual(true, equalsCall);
         }
+
+        [TestMethod]
+        public void DateErrors()
+        {
+            CreateCqlToolkit().MakeLibrary("""
+                library DateErrors version '1.0.0'
+
+                define private Date_Literal: @2026-13-45
+                """, "Invalid date literal '2026-13-45'. Month must be in [1,12] and day must exist in that month and year.");
+
+            CreateCqlToolkit().MakeLibrary("""
+                library DateTimeErrors version '1.0.0'
+
+                define private DateTime_Literal: @2026-13-45T10:00:00.000Z
+                """, "Invalid date/time literal '2026-13-45T10:00:00.000Z'. Month must be in [1,12], day must exist in that month and year, hour must be in [0,23], minute and second in [0,59], millisecond in [0,999], and any timezone offset hour in [-14,14].");
+        }
     }
 }
