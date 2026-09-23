@@ -594,5 +594,24 @@ namespace Hl7.Cql.CqlToElm.Test
 
             return Run<T>(library, expressionName, bundle);
         }
+
+        [TestMethod]
+        [DataRow("Global.\"Fn\"", "Fn", DisplayName = "a library function")]
+        [DataRow("Global.Today", "Today", DisplayName = "a system operator")]
+        public void FunctionNamedThroughALibraryAliasIsReported(string expression, string name)
+        {
+            var global = CqlLibraryString.Parse("""
+                library Global version '1.0.0'
+
+                define function "Fn"(x Integer): x
+                """);
+            CreateCqlToolkit().AddCqlLibraries([global]).MakeLibrary($"""
+                library FunctionThroughAlias version '1.0.0'
+
+                include Global version '1.0.0' called G
+
+                define private Value: {expression.Replace("Global.", "G.")}
+                """, $"Could not resolve identifier {name} in library Global.");
+        }
     }
 }

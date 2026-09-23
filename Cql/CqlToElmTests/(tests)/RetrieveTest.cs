@@ -395,5 +395,74 @@ namespace Hl7.Cql.CqlToElm.Test
             codeFilter.ValueSet.Should().Be("http://fire.ly/ValueSet/Statins");
             immunization.MustSupport.Should().Contain("vaccineCode");
         }
+
+        [TestMethod]
+        public void Retrieve_LibraryQualifiedTerminology()
+        {
+            var global = CqlLibraryString.Parse("""
+                library Global version '1.0.0'
+
+                codesystem "LOINC": 'http://loinc.org'
+                valueset "VS": 'http://fire.ly/ValueSet/Test'
+                code "Height": '8302-2' from "LOINC"
+                """);
+            var cqlToolkit = CreateCqlToolkit().AddCqlLibraries([global]);
+            var library = cqlToolkit.MakeLibrary("""
+                library LibraryQualifiedTerminology version '1.0.0'
+
+                using FHIR version '4.0.1'
+                include Global version '1.0.0'
+
+                define "By value set": [Condition: Global."VS"]
+                define "By code": [Observation: Global."Height"]
+                """);
+            var byName = library.statements.ToDictionary(s => s.name, s => (Retrieve)s.expression);
+
+            var valueSet = byName["By value set"].codes.Should().BeOfType<ValueSetRef>().Subject;
+            valueSet.libraryName.Should().Be("Global");
+            valueSet.name.Should().Be("VS");
+
+            var code = byName["By code"].codes.Should().BeOfType<ToList>().Subject
+                                        .operand.Should().BeOfType<CodeRef>().Subject;
+            code.libraryName.Should().Be("Global");
+            code.name.Should().Be("Height");
+        }
+
+        [TestMethod]
+        public void Retrieve_LibraryAliasAsTerminologyIsReported()
+        {
+            var global = CqlLibraryString.Parse("""
+                library Global version '1.0.0'
+
+                valueset "VS": 'http://fire.ly/ValueSet/Test'
+                """);
+            var cqlToolkit = CreateCqlToolkit().AddCqlLibraries([global]);
+            cqlToolkit.MakeLibrary("""
+                library LibraryAliasAsTerminology version '1.0.0'
+
+                using FHIR version '4.0.1'
+                include Global version '1.0.0'
+
+                define "Conditions": [Condition: Global]
+                """, cqlToolkit.GetMessageProvider().ExpressionCannotBeLibraryRef("Global"));
+        }
+
+        [TestMethod]
+        public void Retrieve_LibraryQualifiedFunctionAsTerminologyIsReported()
+        {
+            var global = CqlLibraryString.Parse("""
+                library Global version '1.0.0'
+
+                define function "Fn"(x Integer): x
+                """);
+            CreateCqlToolkit().AddCqlLibraries([global]).MakeLibrary("""
+                library LibraryQualifiedFunctionAsTerminology version '1.0.0'
+
+                using FHIR version '4.0.1'
+                include Global version '1.0.0'
+
+                define "Conditions": [Condition: Global."Fn"]
+                """, "Could not resolve identifier Fn in library Global.");
+        }
     }
 }

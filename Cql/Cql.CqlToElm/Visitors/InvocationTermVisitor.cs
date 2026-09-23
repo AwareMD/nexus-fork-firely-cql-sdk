@@ -32,10 +32,10 @@ namespace Hl7.Cql.CqlToElm.Visitors
                 for(int i = 1; i < qualifiers.Length; i++)
                 {
                     term = qualifiers[i].referentialIdentifier().Parse();
-                    expression = navigateIntoType(expression, term);
+                    expression = navigateMember(expression, term);
                 }
                 var refId = context.referentialIdentifier().Parse();
-                expression = navigateIntoType(expression, refId);
+                expression = navigateMember(expression, refId);
                 return expression;
             }
             else
@@ -54,12 +54,8 @@ namespace Hl7.Cql.CqlToElm.Visitors
         {
             var term = base.VisitTermExpression(context);
 
-            if (term is UsingRef ur)
-                return SymbolScopeExtensions.MakeErrorReference(null, ur.UsingDef.localIdentifier,
-                    "A reference to a model library is unexpected at this point.").WithLocator(context.Locator());
-            else if (term is IncludeRef ir)
-                return ir.AddError(MessagingProvider.ExpressionCannotBeLibraryRef(ir.IncludeDef.localIdentifier))
-                    .WithLocator(context.Locator());
+            if (term is UsingRef or IncludeRef)
+                return RejectLibraryReference(term, context.Locator());
             else if (term is null)
             {
                 var message = $"Type {context.expressionTerm().GetType()} is not implemented";
@@ -74,6 +70,19 @@ namespace Hl7.Cql.CqlToElm.Visitors
             }
             else return term;
         }
+
+        /// <summary>
+        /// A model or library alias is not a value; used where an expression is expected, it is
+        /// reported as an error.
+        /// </summary>
+        private Expression RejectLibraryReference(Expression term, string locator) => term switch
+        {
+            UsingRef ur => SymbolScopeExtensions.MakeErrorReference(null, ur.UsingDef.localIdentifier,
+                "A reference to a model library is unexpected at this point.").WithLocator(locator),
+            IncludeRef ir => ir.AddError(MessagingProvider.ExpressionCannotBeLibraryRef(ir.IncludeDef.localIdentifier))
+                .WithLocator(locator),
+            _ => term
+        };
 
         public override Expression VisitInstanceSelector([NotNull] cqlParser.InstanceSelectorContext context)
         {
@@ -214,18 +223,7 @@ namespace Hl7.Cql.CqlToElm.Visitors
             Expression memberInvocation(cqlParser.QualifiedMemberInvocationContext memberCtx)
             {
                 var memberName = memberCtx.referentialIdentifier().Parse();
-                if (left is IncludeRef ir)
-                {
-                    var libraryName = ir.IncludeDef.localIdentifier;
-                    return LibraryBuilder.CurrentScope
-                                         .Ref(MessagingProvider, libraryName, memberName)
-                                         .WithLocator(context.Locator());
-                }
-                else
-                {
-                    return navigateIntoType(left, memberName)
-                        .WithLocator(context.Locator());
-                }
+                return navigateMember(left, memberName).WithLocator(context.Locator());
             }
             Expression functionInvocation(cqlParser.QualifiedFunctionContext functionCtx)
             {
@@ -240,6 +238,24 @@ namespace Hl7.Cql.CqlToElm.Visitors
                 };
                 return invocation;
             }
+        }
+
+        /// <summary>
+        /// A member of a library alias is a reference into that library; a member of anything else is
+        /// a property of its type. A function named without being called is not a value, so it is
+        /// reported as unresolved.
+        /// </summary>
+        private Expression navigateMember(Expression source, string memberName)
+        {
+            if (source is not IncludeRef ir)
+                return navigateIntoType(source, memberName);
+
+            var libraryAlias = ir.IncludeDef.localIdentifier;
+            var scope = LibraryBuilder.CurrentScope;
+            if (scope.TryResolveSymbol(libraryAlias, memberName, out var symbol) && symbol is IFunctionElement)
+                return SymbolScopeExtensions.MakeErrorReference(libraryAlias, memberName,
+                    MessagingProvider.CouldNotResolveInLibrary(memberName, ir.IncludeDef.path));
+            return scope.Ref(MessagingProvider, libraryAlias, memberName);
         }
 
         private Expression navigateIntoType(Expression source, string memberName)

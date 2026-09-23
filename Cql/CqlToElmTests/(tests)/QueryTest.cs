@@ -554,5 +554,95 @@ namespace Hl7.Cql.CqlToElm.Test
             var byExpression = expression.sort.by[0].Should().BeOfType<ByExpression>().Subject;
             byExpression.direction.Should().Be(SortDirection.desc);
         }
+
+        [TestMethod]
+        public void UnresolvedQuerySourceIsReported()
+        {
+            CreateCqlToolkit().MakeLibrary("""
+                library UnresolvedQuerySource version '1.0.0'
+
+                define private Query: NoSuchDefine E where E is not null
+                """, "Could not resolve identifier NoSuchDefine in the current library.");
+        }
+
+        [TestMethod]
+        public void UnresolvedQuerySourceStaysAList()
+        {
+            // The recovered source keeps the query a list query, so the return type is a list.
+            var library = CreateCqlToolkit().MakeLibrary("""
+                library UnresolvedQuerySourceReturn version '1.0.0'
+
+                define private Query: NoSuchDefine E return E
+                """, "Could not resolve identifier NoSuchDefine in the current library.");
+
+            library.ShouldDefine<ExpressionDef>("Query")
+                   .expression!.resultTypeSpecifier.Should().BeOfType<ListTypeSpecifier>();
+        }
+
+        [TestMethod]
+        public void LibraryAliasAsQuerySourceIsReported()
+        {
+            var cqlToolkit = CreateCqlToolkit().AddFHIRHelpers();
+            cqlToolkit.MakeLibrary("""
+                library LibraryAliasAsQuerySource version '1.0.0'
+
+                include FHIRHelpers version '4.0.1' called FH
+
+                define private Query: FH E where E is not null
+                """, cqlToolkit.GetMessageProvider().ExpressionCannotBeLibraryRef("FH"));
+        }
+
+        [TestMethod]
+        public void ModelAliasAsQuerySourceIsReported()
+        {
+            CreateCqlToolkit().MakeLibrary("""
+                library ModelAliasAsQuerySource version '1.0.0'
+
+                using FHIR version '4.0.1'
+
+                define private Query: FHIR E where E is not null
+                """, "A reference to a model library is unexpected at this point.");
+        }
+
+        [TestMethod]
+        public void LibraryQualifiedQuerySourceResolves()
+        {
+            var global = CqlLibraryString.Parse("""
+                library Global version '1.0.0'
+
+                define "Numbers": { 1, 2, 3 }
+                """);
+            var cqlToolkit = CreateCqlToolkit().AddCqlLibraries([global]);
+            var library = cqlToolkit.MakeLibrary("""
+                library LibraryQualifiedQuerySource version '1.0.0'
+
+                include Global version '1.0.0'
+
+                define private Query: Global."Numbers" N where N > 1
+                """);
+
+            var source = library.ShouldDefine<ExpressionDef>("Query")
+                                .expression.Should().BeOfType<Query>().Subject.source.Should().ContainSingle().Subject;
+            var reference = source.expression.Should().BeOfType<ExpressionRef>().Subject;
+            reference.libraryName.Should().Be("Global");
+            reference.name.Should().Be("Numbers");
+        }
+
+        [TestMethod]
+        public void LibraryQualifiedFunctionAsQuerySourceIsReported()
+        {
+            var global = CqlLibraryString.Parse("""
+                library Global version '1.0.0'
+
+                define function "Fn"(x Integer): { x }
+                """);
+            CreateCqlToolkit().AddCqlLibraries([global]).MakeLibrary("""
+                library LibraryQualifiedFunctionAsQuerySource version '1.0.0'
+
+                include Global version '1.0.0'
+
+                define private Query: Global."Fn" N where N > 1
+                """, "Could not resolve identifier Fn in library Global.");
+        }
     }
 }

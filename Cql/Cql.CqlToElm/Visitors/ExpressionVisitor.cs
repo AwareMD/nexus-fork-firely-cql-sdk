@@ -227,7 +227,7 @@ namespace Hl7.Cql.CqlToElm.Visitors
             var e = context.expression();
             if (e is not null)
                 return Visit(e);
-            return Visit(qie);
+            return RejectLibraryReference(Visit(qie), context.Locator());
         }
 
 
